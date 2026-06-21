@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Event Congestion Intelligence{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script>tailwind.config = {
+        theme: { extend: { colors: {
+            walmart: { blue: '#0053e2', spark: '#ffc220', dark: '#041f41' },
+            wm: { red: '#ea1100', green: '#2a8703' }
+        }}}
+    }</script>
+    <style>
+        .nav-link { @apply px-4 py-2 rounded-lg text-sm font-medium transition-colors; }
+        .nav-link:hover { @apply bg-white/10; }
+        .nav-link.active { @apply bg-white/20 text-white; }
+        .card { @apply bg-white rounded-xl shadow-md border border-gray-100 p-6; }
+        .stat-card { @apply bg-white rounded-xl shadow-md border border-gray-100 p-5 text-center; }
+        .badge-high { @apply bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-xs font-semibold; }
+        .badge-medium { @apply bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs font-semibold; }
+        .badge-low { @apply bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-semibold; }
+        .badge-critical { @apply bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full text-xs font-semibold; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-walmart-dark shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">🚦</span>
+                    <span class="text-white font-bold text-lg">Event Congestion Intelligence</span>
+                    <span class="text-walmart-spark text-sm font-medium ml-2">Bengaluru Traffic Police</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a href="/" class="nav-link {% if active == 'dashboard' %}active{% endif %} text-gray-300">📊 Dashboard</a>
+                    <a href="/map" class="nav-link {% if active == 'map' %}active{% endif %} text-gray-300">🗺️ Event Map</a>
+                    <a href="/predict" class="nav-link {% if active == 'predict' %}active{% endif %} text-gray-300">🔮 Predict & Plan</a>
+                    <a href="/analytics" class="nav-link {% if active == 'analytics' %}active{% endif %} text-gray-300">📈 Deep Analytics</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-walmart-dark text-gray-400 text-center py-4 text-sm mt-8">
+        Event Congestion Intelligence Platform &bull; Powered by Historical Data &bull; Bengaluru Traffic Police
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
