@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Map - Event Congestion Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script>tailwind.config = {
+        theme: { extend: { colors: {
+            walmart: { blue: '#0053e2', spark: '#ffc220', dark: '#041f41' },
+            wm: { red: '#ea1100', green: '#2a8703' }
+        }}}
+    }</script>
+    <style>
+        .nav-link { @apply px-4 py-2 rounded-lg text-sm font-medium transition-colors; }
+        .nav-link:hover { @apply bg-white/10; }
+        .nav-link.active { @apply bg-white/20 text-white; }
+        .card { @apply bg-white rounded-xl shadow-md border border-gray-100 p-6; }
+        .stat-card { @apply bg-white rounded-xl shadow-md border border-gray-100 p-5 text-center; }
+        .badge-high { @apply bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-xs font-semibold; }
+        .badge-medium { @apply bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs font-semibold; }
+        .badge-low { @apply bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-semibold; }
+        .badge-critical { @apply bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full text-xs font-semibold; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-walmart-dark shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">🚦</span>
+                    <span class="text-white font-bold text-lg">Event Congestion Intelligence</span>
+                    <span class="text-walmart-spark text-sm font-medium ml-2">Bengaluru Traffic Police</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a href="/" class="nav-link  text-gray-300">📊 Dashboard</a>
+                    <a href="/map" class="nav-link active text-gray-300">🗺️ Event Map</a>
+                    <a href="/predict" class="nav-link  text-gray-300">🔮 Predict & Plan</a>
+                    <a href="/analytics" class="nav-link  text-gray-300">📈 Deep Analytics</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        
+<div class="card mb-6">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold text-gray-800">🗺️ Bengaluru Event Map</h2>
+        <div class="flex gap-3 items-center flex-wrap">
+            <select id="filter-cause" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="loadMap()">
+                <option value="">All Causes</option>
+            </select>
+            <select id="filter-type" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="loadMap()">
+                <option value="">All Types</option>
+                <option value="planned">Planned</option>
+                <option value="unplanned">Unplanned</option>
+            </select>
+            <select id="filter-zone" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="loadMap()">
+                <option value="">All Zones</option>
+            </select>
+            <span id="map-count" class="text-sm text-gray-500 font-medium"></span>
+        </div>
+    </div>
+    <div id="map" style="height: 600px; border-radius: 12px;"></div>
+</div>
+
+<!-- Legend -->
+<div class="card">
+    <h3 class="text-lg font-semibold text-gray-800 mb-3">Legend</h3>
+    <div class="flex flex-wrap gap-4 text-sm">
+        <span>🔴 Impact ≥ 7 (High/Critical)</span>
+        <span>🟠 Impact 4-7 (Medium)</span>
+        <span>🟢 Impact < 4 (Low)</span>
+        <span>⚫ Road Closure Required</span>
+    </div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-walmart-dark text-gray-400 text-center py-4 text-sm mt-8">
+        Event Congestion Intelligence Platform &bull; Powered by Historical Data &bull; Bengaluru Traffic Police
+    </footer>
+
+    
+<script>
+let map, markerGroup;
+
+function initMap() {
+    map = L.map('map').setView([12.97, 77.59], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap', maxZoom: 18
+    }).addTo(map);
+    markerGroup = L.markerClusterGroup({ maxClusterRadius: 40 });
+    map.addLayer(markerGroup);
+}
+
+function getColor(impact, closure) {
+    if (closure) return '#000000';
+    if (impact >= 7) return '#ea1100';
+    if (impact >= 4) return '#f97316';
+    return '#2a8703';
+}
+
+async function loadMap() {
+    const cause = document.getElementById('filter-cause').value;
+    const type = document.getElementById('filter-type').value;
+    const zone = document.getElementById('filter-zone').value;
+    const params = new URLSearchParams();
+    if (cause) params.set('event_cause', cause);
+    if (type) params.set('event_type', type);
+    if (zone) params.set('zone', zone);
+
+    const data = await (await fetch('/api/events/map?' + params)).json();
+    markerGroup.clearLayers();
+
+    data.forEach(e => {
+        if (!e.lat || !e.lng) return;
+        const color = getColor(e.impact, e.closure);
+        const marker = L.circleMarker([e.lat, e.lng], {
+            radius: Math.max(5, e.impact),
+            color: color, fillColor: color, fillOpacity: 0.7, weight: 1,
+        });
+        marker.bindPopup(`
+            <div style="min-width:220px">
+                <strong>${e.cause.replace('_',' ')}</strong>
+                <span style="float:right;background:${color};color:white;padding:1px 6px;border-radius:8px;font-size:11px">
+                    ${e.impact}
+                </span>
+                <br><small>${e.type} | ${e.priority}</small>
+                <hr style="margin:4px 0">
+                <small><strong>Zone:</strong> ${e.zone || 'N/A'}</small><br>
+                <small><strong>Corridor:</strong> ${e.corridor || 'N/A'}</small><br>
+                <small><strong>Junction:</strong> ${e.junction || 'N/A'}</small><br>
+                ${e.closure ? '<small>⚫ <strong>Road Closure Required</strong></small><br>' : ''}
+                <small><strong>Date:</strong> ${e.date?.slice(0,16) || 'N/A'}</small><br>
+                ${e.desc ? `<small><strong>Desc:</strong> ${e.desc.slice(0,80)}</small>` : ''}
+                <br><small><strong>Address:</strong> ${e.address.slice(0,80)}</small>
+            </div>
+        `);
+        markerGroup.addLayer(marker);
+    });
+
+    document.getElementById('map-count').textContent = `${data.length} events shown`;
+}
+
+async function loadFilters() {
+    const dd = await (await fetch('/api/dropdowns')).json();
+    const causeSelect = document.getElementById('filter-cause');
+    dd.causes.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c.replace('_',' ');
+        causeSelect.appendChild(opt);
+    });
+    const zoneSelect = document.getElementById('filter-zone');
+    dd.zones.forEach(z => {
+        const opt = document.createElement('option');
+        opt.value = z; opt.textContent = z;
+        zoneSelect.appendChild(opt);
+    });
+}
+
+initMap();
+loadFilters().then(() => loadMap());
+</script>
+
+</body>
+</html>

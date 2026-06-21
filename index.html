@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Event Congestion Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script>tailwind.config = {
+        theme: { extend: { colors: {
+            walmart: { blue: '#0053e2', spark: '#ffc220', dark: '#041f41' },
+            wm: { red: '#ea1100', green: '#2a8703' }
+        }}}
+    }</script>
+    <style>
+        .nav-link { @apply px-4 py-2 rounded-lg text-sm font-medium transition-colors; }
+        .nav-link:hover { @apply bg-white/10; }
+        .nav-link.active { @apply bg-white/20 text-white; }
+        .card { @apply bg-white rounded-xl shadow-md border border-gray-100 p-6; }
+        .stat-card { @apply bg-white rounded-xl shadow-md border border-gray-100 p-5 text-center; }
+        .badge-high { @apply bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-xs font-semibold; }
+        .badge-medium { @apply bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs font-semibold; }
+        .badge-low { @apply bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-semibold; }
+        .badge-critical { @apply bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full text-xs font-semibold; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-walmart-dark shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">🚦</span>
+                    <span class="text-white font-bold text-lg">Event Congestion Intelligence</span>
+                    <span class="text-walmart-spark text-sm font-medium ml-2">Bengaluru Traffic Police</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a href="/" class="nav-link active text-gray-300">📊 Dashboard</a>
+                    <a href="/map" class="nav-link  text-gray-300">🗺️ Event Map</a>
+                    <a href="/predict" class="nav-link  text-gray-300">🔮 Predict & Plan</a>
+                    <a href="/analytics" class="nav-link  text-gray-300">📈 Deep Analytics</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        
+<!-- Hero -->
+<div class="bg-gradient-to-r from-walmart-dark to-walmart-blue rounded-2xl p-8 mb-8 text-white">
+    <h1 class="text-3xl font-bold mb-2">🚦 Event-Driven Congestion Intelligence</h1>
+    <p class="text-blue-200 text-lg">Forecast event-related traffic impact &bull; Recommend optimal manpower & barricading &bull; Learn from every event</p>
+    <p class="text-blue-300 text-sm mt-2">Analysing <span id="total-count" class="font-bold text-walmart-spark">...</span> historical events from Bengaluru (Nov 2023 – Apr 2024)</p>
+</div>
+
+<!-- KPI Cards -->
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8" id="kpi-cards">
+    <div class="stat-card"><div class="text-3xl font-bold text-walmart-blue" id="kpi-total">...</div><div class="text-xs text-gray-500 mt-1">Total Events</div></div>
+    <div class="stat-card"><div class="text-3xl font-bold text-wm-green" id="kpi-planned">...</div><div class="text-xs text-gray-500 mt-1">Planned</div></div>
+    <div class="stat-card"><div class="text-3xl font-bold text-wm-red" id="kpi-unplanned">...</div><div class="text-xs text-gray-500 mt-1">Unplanned</div></div>
+    <div class="stat-card"><div class="text-3xl font-bold text-orange-500" id="kpi-closures">...</div><div class="text-xs text-gray-500 mt-1">Road Closures</div></div>
+    <div class="stat-card"><div class="text-3xl font-bold text-purple-600" id="kpi-high">...</div><div class="text-xs text-gray-500 mt-1">High Impact</div></div>
+    <div class="stat-card"><div class="text-3xl font-bold text-walmart-spark" id="kpi-avg">...</div><div class="text-xs text-gray-500 mt-1">Avg Impact Score</div></div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">📊 Events by Cause</h3>
+        <div style="height: 350px;"><canvas id="chart-causes"></canvas></div>
+    </div>
+    <div class="card">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">⏰ Events by Hour of Day</h3>
+        <div style="height: 350px;"><canvas id="chart-hours"></canvas></div>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">📍 Events by Zone</h3>
+        <div style="height: 350px;"><canvas id="chart-zones"></canvas></div>
+    </div>
+    <div class="card">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">📅 Events by Day of Week</h3>
+        <div style="height: 350px;"><canvas id="chart-days"></canvas></div>
+    </div>
+</div>
+
+<!-- Event-Driven Focus -->
+<div class="card mb-6">
+    <h3 class="text-lg font-semibold text-gray-800 mb-4">🎯 Event-Driven Congestion Breakdown (Planned vs Unplanned)</h3>
+    <div style="height: 400px;"><canvas id="chart-event-driven"></canvas></div>
+</div>
+
+<!-- Corridor Analysis -->
+<div class="card">
+    <h3 class="text-lg font-semibold text-gray-800 mb-4">🛣️ Top Corridors by Event Count</h3>
+    <div style="height: 400px;"><canvas id="chart-corridors"></canvas></div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-walmart-dark text-gray-400 text-center py-4 text-sm mt-8">
+        Event Congestion Intelligence Platform &bull; Powered by Historical Data &bull; Bengaluru Traffic Police
+    </footer>
+
+    
+<script>
+const COLORS = {
+    blue: '#0053e2', spark: '#ffc220', red: '#ea1100', green: '#2a8703',
+    purple: '#7c3aed', orange: '#f97316', cyan: '#06b6d4', pink: '#ec4899',
+    teal: '#14b8a6', indigo: '#6366f1', amber: '#f59e0b', lime: '#84cc16',
+    rose: '#f43f5e', sky: '#0ea5e9', emerald: '#10b981', violet: '#8b5cf6',
+    fuchsia: '#d946ef'
+};
+const PALETTE = Object.values(COLORS);
+
+async function loadDashboard() {
+    // KPIs
+    const stats = await (await fetch('/api/stats')).json();
+    document.getElementById('kpi-total').textContent = stats.total.toLocaleString();
+    document.getElementById('kpi-planned').textContent = stats.planned.toLocaleString();
+    document.getElementById('kpi-unplanned').textContent = stats.unplanned.toLocaleString();
+    document.getElementById('kpi-closures').textContent = stats.closures.toLocaleString();
+    document.getElementById('kpi-high').textContent = stats.high_impact.toLocaleString();
+    document.getElementById('kpi-avg').textContent = stats.avg_impact;
+    document.getElementById('total-count').textContent = stats.total.toLocaleString();
+
+    // By Cause
+    const causes = await (await fetch('/api/analytics/by-cause')).json();
+    new Chart(document.getElementById('chart-causes'), {
+        type: 'bar',
+        data: {
+            labels: causes.map(c => c.cause.replace('_',' ')),
+            datasets: [{
+                label: 'Event Count',
+                data: causes.map(c => c.count),
+                backgroundColor: PALETTE.slice(0, causes.length),
+                borderRadius: 6,
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    // By Hour
+    const hours = await (await fetch('/api/analytics/by-hour')).json();
+    new Chart(document.getElementById('chart-hours'), {
+        type: 'line',
+        data: {
+            labels: hours.map(h => `${String(h.hour).padStart(2,'0')}:00`),
+            datasets: [{
+                label: 'Events',
+                data: hours.map(h => h.count),
+                borderColor: COLORS.blue, backgroundColor: COLORS.blue + '20',
+                fill: true, tension: 0.4, pointRadius: 4,
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    // By Zone
+    const zones = await (await fetch('/api/analytics/by-zone')).json();
+    new Chart(document.getElementById('chart-zones'), {
+        type: 'doughnut',
+        data: {
+            labels: zones.map(z => z.zone),
+            datasets: [{
+                data: zones.map(z => z.count),
+                backgroundColor: PALETTE.slice(0, zones.length),
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } }
+        }
+    });
+
+    // By Day
+    const days = await (await fetch('/api/analytics/by-day')).json();
+    new Chart(document.getElementById('chart-days'), {
+        type: 'bar',
+        data: {
+            labels: days.map(d => d.day.slice(0,3)),
+            datasets: [{
+                label: 'Events',
+                data: days.map(d => d.count),
+                backgroundColor: COLORS.spark, borderRadius: 6,
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    // Event-Driven
+    const ed = await (await fetch('/api/analytics/event-driven')).json();
+    const edCauses = [...new Set(ed.map(e => e.cause))];
+    const planned = edCauses.map(c => ed.find(e => e.cause === c && e.type === 'planned')?.count || 0);
+    const unplanned = edCauses.map(c => ed.find(e => e.cause === c && e.type === 'unplanned')?.count || 0);
+    new Chart(document.getElementById('chart-event-driven'), {
+        type: 'bar',
+        data: {
+            labels: edCauses.map(c => c.replace('_',' ')),
+            datasets: [
+                { label: 'Planned', data: planned, backgroundColor: COLORS.green, borderRadius: 6 },
+                { label: 'Unplanned', data: unplanned, backgroundColor: COLORS.red, borderRadius: 6 },
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false,
+            scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+        }
+    });
+
+    // Corridors
+    const corr = await (await fetch('/api/analytics/by-corridor')).json();
+    new Chart(document.getElementById('chart-corridors'), {
+        type: 'bar',
+        data: {
+            labels: corr.map(c => c.corridor),
+            datasets: [{
+                label: 'Event Count',
+                data: corr.map(c => c.count),
+                backgroundColor: COLORS.blue + '90', borderRadius: 6,
+            }, {
+                label: 'Avg Impact (×50)',
+                data: corr.map(c => (c.avg_impact || 0) * 50),
+                backgroundColor: COLORS.spark + '90', borderRadius: 6,
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+            scales: { x: { beginAtZero: true } }
+        }
+    });
+}
+
+loadDashboard();
+</script>
+
+</body>
+</html>
